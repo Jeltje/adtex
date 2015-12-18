@@ -23,8 +23,8 @@ ADD exec/bedtools /usr/local/bin/
 ADD exec/coverageBed /usr/local/bin/
 ADD exec/intersectBed /usr/local/bin/
 
-# adtex
-ADD exec/ADTEx.py /usr/local/bin/
+# adtex (add altered version instead of download)
+ADD ADTEx.py /usr/local/bin/
 ADD exec/base_cnv.R /usr/local/bin/
 ADD exec/cnv_analyse.R /usr/local/bin/
 ADD exec/extract_cnv.R /usr/local/bin/
@@ -34,12 +34,13 @@ ADD exec/segment_ratio.R /usr/local/bin/
 ADD exec/zygosity.R /usr/local/bin/
 ADD exec/getMeanCoverage.py /usr/local/bin/
 
+
 # Set WORKDIR to /data -- predefined mount location.
 RUN mkdir /data
 WORKDIR /data
 
 # And clean up
-RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/*
+RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* 
 
 ENTRYPOINT ["python", "/usr/local/bin/ADTEx.py"]
 

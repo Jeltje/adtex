@@ -6,9 +6,8 @@ RUN apt-get update && apt-get install -y \
 	wget \
 	g++ \
 	make \
-	zlib1g-dev 
-#	python2.7
-#        git \
+        dpkg-dev \
+	zlib1g-dev  
 
 # python3 is the default
 RUN ln -s /usr/bin/python3 /usr/bin/python
@@ -21,7 +20,7 @@ WORKDIR /home/adtex-src
 
 # get adtex 
 RUN wget http://downloads.sourceforge.net/project/adtex/ADTEx.v2.0/ADTEx.v.2.0.tar.gz
-RUN tar xvf ADTEx.v.2.0.tar.gz
+RUN tar xf ADTEx.v.2.0.tar.gz
 RUN mv ADTEx.v.2.0/* /home/exec
 
 # wmtsa dependencies. Note: use archived version of MASS to be compatible with R 3.0.2
@@ -35,7 +34,7 @@ RUN wget -O /home/exec/wmtsa_2.0-0.tar.gz https://cran.r-project.org/src/contrib
 
 # bedtools
 RUN wget https://github.com/arq5x/bedtools2/releases/download/v2.25.0/bedtools-2.25.0.tar.gz
-RUN tar xvf bedtools-2.25.0.tar.gz
+RUN tar xf bedtools-2.25.0.tar.gz
 WORKDIR /home/adtex-src/bedtools2
 RUN make 
 RUN mv bin/bedtools /home/exec
@@ -49,5 +48,5 @@ RUN chmod -R 777 /home/exec
 WORKDIR /home
  
 # And clean up
-#RUN apt-get clean && rm -rf /var/lib/apt/lists/* /home/adtex-src
+RUN apt-get clean && rm -rf /var/lib/apt/lists/* /home/adtex-src
 
