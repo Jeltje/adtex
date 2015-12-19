@@ -1,8 +1,10 @@
 #!/usr/bin/python2.7
 
 # ----------------------------------------------------------------------#
-# Note from Jeltje van Baren, 2015: slightly altered original code to avoid
+# Note from Jeltje van Baren, 2015: 
+# Altered original code to avoid
 # copying large input files, and removed concatenation of png files into a pdf
+# Also removed option to input bam files, since the bedtools call fills up the drive
 #
 # Copyright (c) 2013, Kaushalya Amarasinghe.
 #
@@ -41,14 +43,11 @@ class Options:
 
 	def __init__(self):
 		self.parser = argparse.ArgumentParser("Aberration Detection in Tumour EXome")
-		self.parser.add_argument('-n','--normal', help = 'Matched normal sample in BAM format or bed formatted coverage [REQUIRED], to generate bed formatted coverage please see documentation',dest='control')
-		self.parser.add_argument('-t','--tumor', help = 'Tumor sample in BAM format or bed format DOC coverage [REQUIRED], to generate bed formatted coverage please see documentation',dest='tumor')
+		self.parser.add_argument('-n','--normal', help = 'Matched normal sample in bed formatted coverage [REQUIRED], to generate bed formatted coverage please see documentation',dest='control')
+		self.parser.add_argument('-t','--tumor', help = 'Tumor sample in bed format DOC coverage [REQUIRED], to generate bed formatted coverage please see documentation',dest='tumor')
 		self.parser.add_argument('-b','--bed',help = 'BED format of the targeted regions [REQUIRED]', dest='bed')
 		self.parser.add_argument('-o','--out',help="Output folder path name to store the output of analysis [REQUIRED]",
 			action="store", dest="outFolder") 
-		self.parser.add_argument("--DOC",
-			help="If specified, matched normal and tumor inputs  will be in BED formatted coverage [False]",
-			action="store_true", dest = "doc",default="False")
 		self.parser.add_argument("--ploidy",help="Most common ploidy in the tumour sample [2]", dest="ploidy",action="store")
 		self.parser.add_argument("--estimatePloidy", help="If provided, --baf must be specified to estimate base ploidy [FALSE]",dest="p_est", action="store_true",default="False")
 		self.parser.add_argument("--minReadDepth", 
@@ -82,11 +81,6 @@ class Options:
 			self.outFolder = str(args.outFolder)
 		else:
 			self.parser.error('Output folder path not supplied')
-		if str(args.doc)=="True":
-			#self.totReads = args.doc
-			self.docInput = "True"
-		else:
-			self.docInput = "False"
 		if args.ploidy:
 			self.ploidy = args.ploidy
 			self.p_est="False"
@@ -109,71 +103,11 @@ class Options:
 			self.plot = args.plot
 
 
-def splitBam(inF,outFolder,chroms):
-	try:
-		os.mkdir(outFolder + "/chr/")
-	except:
-		print "Folder exists"
-		 					
-	for c in chroms:
-		outputfile = outFolder + "/chr/" + c+".bam"
-		subprocess.call("samtools view -bh %s %s > %s" %(inF,c,outputfile),shell=True)
-		
-
-def splitBed(inF,outFolder,chroms):
-	try:
-		os.mkdir(outFolder + "/chr/")
-	except:
-		print "Folder exists"
-	inF = open(inF,"r")
-	check = "1"
-	outputfile = outFolder + "/chr/" + str(check)+".bed"
-	outfile = open(outputfile,"w")
-	
-	for row in inF:
-		cols = row.split()
-		chr = cols[0]
-		if (chr != check):
-			outfile.close()
-			check = chr
-			outputfile = outFolder + "/chr/" + str(check)+".bed"
-			outfile = open(outputfile,"w")
-		outfile.write(row.rstrip()+"\n")
-
-	outfile.close()
-		
-def getCoverage(outF,bedF,chroms):
-	outFile = outF+"/coverage.txt"
-	iOutFile = open(outFile, "w")
-	for c in chroms:
-		inFile = outF + "/chr/" +c+".bam"
-		targets = bedF + "/chr/"+c+".bed"
-		args = shlex.split("coverageBed -abam %s -d -b %s" %(inFile, targets))
-		output = subprocess.Popen(args, stdout = subprocess.PIPE).communicate()[0]
-		iOutFile.write(output)
-	iOutFile.close()
-	subprocess.call("sort  -V -k1 -k2n -k3n -k4n %s > %s" %(outFile,outFile+".sorted"),shell=True)
-	
-def getCoveragefromBAM(outF,bedF,inF):
-	outFile = outF+"/coverage.txt"
-	targets = bedF
-	inFile = inF
-	
-	#to remove duplicates
-	#outbam = outF+"/noduplicates.bam"
-	#subprocess.call("samtools view -F 0x400 %s > %s" %(inFile,outbam),shell=True)
-	#subprocess.call("coverageBed -abam %s -d -b %s > %s" %(outbam,targets,outFile),shell=True)
-	
-	subprocess.call("coverageBed -abam %s -d -b %s > %s" %(inFile,targets,outFile),shell=True)
-	subprocess.call("sort -V -k1 -k2n -k3n -k4n %s > %s" %(outFile,outFile+".sorted"),shell=True)
-
 
 def sortFile(inF,fileN):
 	inFile = inF+fileN
 	subprocess.call("sort  -V -k1 -k2n -k3n -k4n %s > %s" %(inFile,inFile+".sorted"),shell=True)
 
-def getTotReads(inF,folder):
-	subprocess.call("samtools view %s | wc -l > %s/tot_reads.txt" %(inF,folder),shell=True)
 
 def analyseCNV(params,ratio_data,outF,chroms):
 	print "Analysing CNV..."
@@ -243,7 +177,6 @@ def main():
 	tumor = options.tumor
 	targets = options.bed
 	outF = options.outFolder
-	docInput = options.docInput
 	bafIn = options.bafin
 	
 	print "Creating output folder"
@@ -264,28 +197,16 @@ def main():
 	chroms = getChroms(targets,outF)
 	targets = outF+"/targets.sorted"
 		
-	if (str(docInput)=="True"):
-		print "Generating mean coverage files..."
-                os.symlink(os.path.abspath(control), os.path.join(outF, 'temp', 'control', 'coverage.txt'))
-                os.symlink(os.path.abspath(tumor), os.path.join(outF, 'temp', 'tumor', 'coverage.txt'))
-		ctrSort=Process(target= sortFile, args=(outF+"/temp/control","/coverage.txt"))
-		tmrSort=Process(target= sortFile, args=(outF+"/temp/tumor","/coverage.txt"))
-		ctrSort.start()
-		tmrSort.start()
-		ctrSort.join()
-		tmrSort.join()
+	print "Generating mean coverage files..."
+        os.symlink(os.path.abspath(control), os.path.join(outF, 'temp', 'control', 'coverage.txt'))
+        os.symlink(os.path.abspath(tumor), os.path.join(outF, 'temp', 'tumor', 'coverage.txt'))
+	ctrSort=Process(target= sortFile, args=(outF+"/temp/control","/coverage.txt"))
+	tmrSort=Process(target= sortFile, args=(outF+"/temp/tumor","/coverage.txt"))
+	ctrSort.start()
+	tmrSort.start()
+	ctrSort.join()
+	tmrSort.join()
 	   	
-	else:
-		print "Creating coverage files"
-	
-                # Following codes are for generating coverage for the whole bam at once
-		ctrDOC = Process(target= getCoveragefromBAM, args=(outF+"/temp/control",targets,control))
-		tmrDOC = Process(target= getCoveragefromBAM, args=(outF+"/temp/tumor",targets,tumor))
-		ctrDOC.start()
-		tmrDOC.start()
-		ctrDOC.join()
-		tmrDOC.join()
-	    	
     	
     	ctrDOC = Process(target= getMeanCoverage, args=(outF+"/temp/control/coverage.txt.sorted",outF+"/control.coverage"))
 	tmrDOC = Process(target= getMeanCoverage, args=(outF+"/temp/tumor/coverage.txt.sorted",outF+"/tumor.coverage"))
