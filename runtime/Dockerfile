@@ -33,7 +33,7 @@ ADD exec/RFunction.R /usr/local/bin/
 ADD exec/segment_ratio.R /usr/local/bin/
 ADD exec/zygosity.R /usr/local/bin/
 ADD exec/getMeanCoverage.py /usr/local/bin/
-
+ADD runADTEx /usr/local/bin
 
 # Set WORKDIR to /data -- predefined mount location.
 RUN mkdir /data
@@ -42,5 +42,5 @@ WORKDIR /data
 # And clean up
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* 
 
-ENTRYPOINT ["python", "/usr/local/bin/ADTEx.py"]
+ENTRYPOINT ["bash", "/usr/local/bin/runADTEx"]
 

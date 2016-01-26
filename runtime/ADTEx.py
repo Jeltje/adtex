@@ -255,7 +255,7 @@ def main():
     		subprocess.call("mkdir %s" %(outF+"/zygosity"),shell=True)
     		zygosity(options,outF,chroms)
     		
-    	subprocess.call("rm %s %s %s" %(outF+"/chrom",outF+"/ratio.data",outF+"/targets.sorted"),shell=True)
+    	subprocess.call("rm %s %s %s %s %s" %(outF+"/chrom",outF+"/ratio.data",outF+"/targets.sorted",outF+"/control.coverage",outF+"/tumor.coverage"),shell=True)
     	
     	subprocess.call("date",shell=True)
 	
