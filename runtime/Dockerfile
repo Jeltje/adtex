@@ -3,7 +3,8 @@ FROM ubuntu:14.04
 MAINTAINER Jeltje van Baren, jeltje.van.baren@gmail.com
 
 RUN apt-get update && apt-get install -y \
-	r-base 
+	r-base \
+	vim
 
 # DNAcopy and wmtsa package (move to R library location)
 # Note: cannot use ADD because this untars the file
@@ -21,26 +22,32 @@ RUN R CMD INSTALL /tmp/wmtsa_2.0-0.tar.gz
 # bedtools
 ADD exec/bedtools /usr/local/bin/
 ADD exec/coverageBed /usr/local/bin/
-ADD exec/intersectBed /usr/local/bin/
 
-# adtex (add altered version instead of download)
-ADD ADTEx.py /usr/local/bin/
-ADD exec/base_cnv.R /usr/local/bin/
-ADD exec/cnv_analyse.R /usr/local/bin/
-ADD exec/extract_cnv.R /usr/local/bin/
-ADD exec/plot_results.R /usr/local/bin/
+# Adtex suite 
 ADD exec/RFunction.R /usr/local/bin/
-ADD exec/segment_ratio.R /usr/local/bin/
-ADD exec/zygosity.R /usr/local/bin/
-ADD exec/getMeanCoverage.py /usr/local/bin/
-ADD runADTEx /usr/local/bin
 
-# Set WORKDIR to /data -- predefined mount location.
+# Slightly modified versions of Adtex suite code
+ADD base_cnv.R /usr/local/bin/
+ADD cnv_analyse.R /usr/local/bin/
+ADD extract_cnv.R /usr/local/bin/
+ADD plot_results.R /usr/local/bin/
+ADD segment_ratio.R /usr/local/bin/
+ADD zygosity.R /usr/local/bin/
+
+# Heavily modified Adtex runner script
+ADD ADTEx.py /usr/local/bin/
+
+# Boilerplate
+RUN mkdir /opt/adtex
+ADD wrapper.sh /opt/adtex/
+
 RUN mkdir /data
 WORKDIR /data
+
+ENTRYPOINT ["sh", "/opt/adtex/wrapper.sh"]
+CMD ["--help"]
 
 # And clean up
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* 
 
-ENTRYPOINT ["bash", "/usr/local/bin/runADTEx"]
 
