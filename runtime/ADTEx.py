@@ -195,11 +195,9 @@ def analyseCNV(params, ratio_data, outdir, tmpdir,  chroms):
     """
     rScriptName = os.path.join(scriptPath, 'cnv_analyse.R')
     rFunctionsPath = os.path.join(scriptPath, 'RFunction.R')
-    outfiles = []
     # if we don't want to estimate ploidy
     if(str(params.p_est)=="False"):
         outfile = os.path.join(outdir, "cnv.result")
-        outfiles.append(outfile)
         with open(outfile, 'w') as o:
             subprocess.check_call(['Rscript', rScriptName, rFunctionsPath, 
                    ratio_data, str(params.ploidy), str(params.minRead),  
@@ -209,12 +207,10 @@ def analyseCNV(params, ratio_data, outdir, tmpdir,  chroms):
 	# in tmpdir
         for ploidy in ['2', '3', '4']:
             outfile = os.path.join(tmpdir, "cnv.result" + ploidy)
-            outfiles.append(outfile)
             with open(outfile, 'w') as o:
                 subprocess.check_call(['Rscript', rScriptName, rFunctionsPath, 
                     ratio_data, ploidy, str(params.minRead),  
                     params.bafin, params.baf, params.plot, chroms], stdout=o)
-    return outfiles
 
 def zygosity(params, outdir, cnv, chroms):
     """
@@ -263,7 +259,8 @@ def main():
     bafIn = options.bafin
 
     # These folders are local to the docker container
-    workdir = os.path.join('/data', outFolder)
+    workdir = options.outFolder
+    #workdir = os.path.join('/data', options.outFolder)
     tmpdir = os.path.join(workdir, 'tmp')
     mkdir_p(tmpdir)
     
@@ -301,10 +298,13 @@ def main():
         rScriptName = os.path.join(scriptPath,"plot_results.R")
         subprocess.check_call(['Rscript', rScriptName, workdir, chromstring])
 
-    # if baf is provided but ploidy does not need to be estimated
+    # if baf is provided, predict zygosity
+    # at this point we should have a file called cnv.result in workdir
+    cnvfile = os.path.join(workdir, 'cnv.result')
+    assert os.path.exists(cnvfile)
     if(str(bafIn) =="True"):
 	print "Predicting Zygosity states"
-        zygosity(options, workdir, cnvFiles[0], chromstring) 
+        zygosity(options, workdir, cnvfile, chromstring) 
 
     # Delete temporary directory	
     if not options.keeptemp:
