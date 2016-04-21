@@ -36,8 +36,6 @@ import argparse
 import sys
 import subprocess
 import shutil
-#import shlex   # remove me
-#from multiprocessing import Process, Manager  # remove me
 
 
 #absolute script path
@@ -49,44 +47,43 @@ class Options:
     """
     def __init__(self):
         self.parser = argparse.ArgumentParser('Aberration Detection in Tumour EXome')
-        self.parser.add_argument('-n','--normal', help = 'Matched normal sample in bed formatted coverage [REQUIRED], to generate bed formatted coverage please see documentation',dest='control')
-        self.parser.add_argument('-t','--tumor', help = 'Tumor sample in bed format DOC coverage [REQUIRED], to generate bed formatted coverage please see documentation',dest='tumor')
-        self.parser.add_argument('-b','--bed',help = 'BED format of the targeted regions [REQUIRED]', dest='bed')
-        self.parser.add_argument('-o','--out',help='Output folder name to store temporary files, folder will be created as a subfolder of the working directory if it does not exist [REQUIRED]', action='store', dest='outFolder') 
+        self.parser.add_argument('-n','--normal', required=True, 
+           help = 'Matched normal sample in bed formatted coverage [REQUIRED], to generate bed formatted coverage please see documentation',
+           dest='control')
+        self.parser.add_argument('-t','--tumor', required=True, 
+            help = 'Tumor sample in bed format DOC coverage [REQUIRED], to generate bed formatted coverage please see documentation',dest='tumor')
+        self.parser.add_argument('-s','--sample', type=str, required=True, help = 'sample ID (will be used in output) [REQUIRED]', dest='sample')
+        self.parser.add_argument('-b','--bed', required=True, help = 'BED format of the targeted regions [REQUIRED]', dest='bed')
+        self.parser.add_argument('-c', '--centro', type=str, required=True, help="Centromere bed file [REQUIRED]")
+        self.parser.add_argument('-o','--out', type=str, required=True, 
+            help='Output folder name to store temporary files, folder will be created as a subfolder of the working directory if it does not exist [REQUIRED]', action='store', dest='outFolder') 
         self.parser.add_argument('--keeptemp',help='do not delete temporary output folder adtexout', dest='keeptemp',action='store_true')
-        self.parser.add_argument('--ploidy',help='Most common ploidy in the tumour sample [2]', dest='ploidy',action='store')
-        self.parser.add_argument('--estimatePloidy', help='If provided, --baf must be specified to estimate base ploidy [FALSE]',dest='p_est', action='store_true',default='False')
-        self.parser.add_argument('--minReadDepth', 
+        self.parser.add_argument('--ploidy', type=str, default='2', help='Most common ploidy in the tumour sample [2]', 
+            dest='ploidy',action='store')
+        self.parser.add_argument('--estimatePloidy', help='If provided, --baf must be specified to estimate base ploidy [FALSE]',
+            dest='p_est', action='store_true',default='False')
+        self.parser.add_argument('--minReadDepth', type=str, default='10',
             help='The threshold for minimum read depth for each exon [10]',
-            action='store', dest='minReadDepth', default=10) 
+            action='store', dest='minReadDepth' ) 
         self.parser.add_argument('-p', '--plot', 
             help='Plots each chromosome with CNV estimates [False]', 
             action='store_true', dest='plot', default='False')
         self.parser.add_argument('--baf', help='File containing B allele frequencies at heterozygous loci of the normal [optional]', dest='baf',action='store')
         
         args = self.parser.parse_args()
-        if args.control:
-            self.control = args.control
-        else:
-            self.parser.error('Matched normal sample not supplied')
-        if args.tumor:
-            self.tumor = args.tumor
-        else:
-            self.parser.error('Tumor sample not supplied')
-        if args.bed:
-            self.bed = args.bed
-        else:
-            self.parser.error('Targeted regions file not supplied')
+        self.control = args.control
+        self.tumor = args.tumor
+        self.sample = args.sample
+        self.bed = args.bed
+        self.centro = args.centro
+        self.outFolder = args.outFolder
+        self.minRead = args.minReadDepth
         if args.baf:
             self.baf = args.baf
             self.bafin = 'True'
         else:
             self.bafin = 'False'
             self.baf = 'False'
-        if args.outFolder:
-            self.outFolder = str(args.outFolder)
-        else:
-            self.parser.error('Output folder path not supplied')
         if args.keeptemp:
             self.keeptemp = True
         if args.ploidy:
@@ -103,10 +100,8 @@ class Options:
             else:
                 self.parser.error('--baf must be provided if base ploidy estimation is used')
         elif str(self.ploidyIn)=='False':
-            self.ploidy=2
+            self.ploidy = '2'
             self.p_est = 'False'            
-        if args.minReadDepth:
-            self.minRead = args.minReadDepth
         if args.plot:
             self.plot = 'True'
 
@@ -184,7 +179,7 @@ def segmentRatio(params, cCoverage, tCoverage, outF, chroms, ratioOutfile, snpSe
     rScriptName = os.path.join(scriptPath,'segment_ratio.R')
     rFunctionsPath = os.path.join(scriptPath,'RFunction.R')
     subprocess.check_call(['Rscript', rScriptName, rFunctionsPath, cCoverage, 
-       tCoverage, str(params.minRead), outF, params.bafin, params.baf, 
+       tCoverage, params.minRead, outF, params.bafin, params.baf, 
        params.ploidyIn, ratioOutfile, snpSegfile, chroms])
 
 
@@ -196,11 +191,11 @@ def analyseCNV(params, ratio_data, outdir, tmpdir,  chroms):
     rScriptName = os.path.join(scriptPath, 'cnv_analyse.R')
     rFunctionsPath = os.path.join(scriptPath, 'RFunction.R')
     # if we don't want to estimate ploidy
-    if(str(params.p_est)=="False"):
+    if(params.p_est == "False"):
         outfile = os.path.join(outdir, "cnv.result")
         with open(outfile, 'w') as o:
             subprocess.check_call(['Rscript', rScriptName, rFunctionsPath, 
-                   ratio_data, str(params.ploidy), str(params.minRead),  
+                   ratio_data, params.ploidy, params.minRead,  
                    params.bafin, params.baf, params.plot, chroms], stdout=o)
     else:
         # if we DO want to estimate ploidy, run CNV three times, once for each ploidy and output files as temporaries
@@ -209,7 +204,7 @@ def analyseCNV(params, ratio_data, outdir, tmpdir,  chroms):
             outfile = os.path.join(tmpdir, "cnv.result" + ploidy)
             with open(outfile, 'w') as o:
                 subprocess.check_call(['Rscript', rScriptName, rFunctionsPath, 
-                    ratio_data, ploidy, str(params.minRead),  
+                    ratio_data, ploidy, params.minRead,  
                     params.bafin, params.baf, params.plot, chroms], stdout=o)
 
 def zygosity(params, outdir, cnv, chroms):
@@ -218,7 +213,7 @@ def zygosity(params, outdir, cnv, chroms):
     a table with zygosity numbers. If plots are requested, these are put in outdir too.
     """
     rScriptName = os.path.join(scriptPath,"zygosity.R")
-    subprocess.check_call(['Rscript', rScriptName, params.baf, outdir, cnv, str(params.minRead), params.plot, chroms])
+    subprocess.check_call(['Rscript', rScriptName, params.baf, outdir, cnv, params.minRead, params.plot, chroms])
 
 def estimatePloidy(tmpdir, workdir, snpSegfile):
     """
@@ -247,12 +242,74 @@ def estimatePloidy(tmpdir, workdir, snpSegfile):
     ploidy=open(os.path.join(workdir, "ploidy")).readline().strip()
     shutil.copyfile(os.path.join(tmpdir, "cnv.result" + ploidy), os.path.join(workdir, "cnv.result"))         
 
+class cent(object):
+    """centromere objects by chromosome"""
+    def __init__(self, line):
+        [id, start, end] = line.split("\t")
+	self.name = id
+        self.p = int(start)
+        self.q = int(end)
+
+def getChrom(id, centList, cur):
+    """get split chromosome IDs"""
+    if cur and id == cur.name:
+	return cur
+    for i in centList:
+	if id == i.name:
+	    return i
+    return False
+
+def doCBS(centro, tmpdir, infile, outfile, sampleId):
+    """
+    Splits input cnv file in chromosome arms based on the centro bed file input, 
+    then runs basicDNAcopy.R and removes the split
+    """
+    # create centromere object list
+    centros=[]
+    with open(centro, 'r') as f:
+        for line in f:
+            line = line.strip()
+            centobj = cent(line)
+            centros.append(centobj)
+
+    # split the chromosomes in arms
+    splitfile = os.path.join(tmpdir, 'splitchrom.cnv')
+    with open (infile, 'r') as f, open(splitfile, 'w') as o: 
+        curchrom = False
+        for line in f:
+            fields = line.split("\t")
+            if fields[0] == 'chr':
+	        o.write(line)
+	        continue
+            id = fields[0]
+            start = int(fields[1])
+            end = int(fields[2])
+            curchrom = getChrom(id, centros, curchrom)
+            # centromere free chromosomes
+            if not curchrom:
+	        o.write(line)
+            # print only if segment does not overlap centromere
+            elif end < curchrom.p:
+        	fields[0] = ('.').join([fields[0], 'p'])
+        	o.write(("\t").join(fields))
+            elif start > curchrom.q:
+        	fields[0] = ('.').join([fields[0], 'q'])
+        	o.write(("\t").join(fields))
+    # run CBS
+    rScriptName = os.path.join(scriptPath,"basicDNAcopy.R")
+    cbs = subprocess.check_output(['Rscript', rScriptName, splitfile, "2.5", sampleId])
+    cbs = cbs.replace('.p\t', '\t')
+    cbs = cbs.replace('.q\t', '\t')
+    
+    with open(outfile, 'w') as o:
+        o.write(cbs)
+
+
 def main():
 
     subprocess.call("date")
     
     options = Options()
-    
     control = options.control
     tumor = options.tumor
     targets = options.bed
@@ -286,12 +343,12 @@ def main():
     print 'Analyzing CNV...'
     cnvFiles = analyseCNV(options, ratiofile, workdir, tmpdir, chromstring)
 
-    if(str(options.p_est)=="True"):
+    if(options.p_est == "True"):
 
         print "Estimating base ploidy..."
         estimatePloidy(tmpdir, workdir, snpSegfile)
     	
-    if str(options.plot)=="True":
+    if options.plot == "True":
         #Runs plot_results.R, which expects a file named cnv.results in the input directory
 	#Creates one plot per chromosome.
 
@@ -302,16 +359,22 @@ def main():
     # at this point we should have a file called cnv.result in workdir
     cnvfile = os.path.join(workdir, 'cnv.result')
     assert os.path.exists(cnvfile)
-    if(str(bafIn) =="True"):
+    if(bafIn == "True"):
 	print "Predicting Zygosity states"
         zygosity(options, workdir, cnvfile, chromstring) 
+
+    # This is an addition to the original ADTEx code. In cnv_analyse.R, DNAcopy is
+    # called but not supplied with a proper logratio. Changing it in the code 
+    # doesn't appear to work well, so here we post process it, also blocking out centromeres.
+    sampleId = options.sample
+    cbsOut = os.path.join(workdir, sampleId + '.cnv')
+    doCBS(options.centro, tmpdir, cnvfile, cbsOut, sampleId)
 
     # Delete temporary directory	
     if not options.keeptemp:
         shutil.rmtree(tmpdir)
     subprocess.call("date",shell=True)
 	
-
 if __name__ == "__main__":
-	main()
+    main()
 
