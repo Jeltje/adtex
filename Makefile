@@ -1,26 +1,33 @@
 # Definitions
-build_path = build/
-runtime_path = runtime/
-build_output = ${runtime_path}/exec/ADTEx.py
-runtime_fullpath = $(realpath ${runtime_path})
+curpath = $(shell pwd)
+runtime_fullpath = ${curpath/runtime 
+build_output = runtime/exec/ADTEx.py
 build_tool = runtime-container.DONE
 nametag = jeltje/adtex
+
+sources = test/normal.cov test/tumor.cov
 
 # Steps
 all: ${build_output} ${build_tool}
 
-${build_output}: ${build_path}/Dockerfile
-	cd ${build_path} && docker build -t adtexbuild .
+${build_output}: build/Dockerfile
+	cd build && docker build -t adtexbuild .
 	docker run -v ${runtime_fullpath}:/data adtexbuild cp -rp exec /data
 
-${build_tool}: ${build_output} ${runtime_path}/Dockerfile
-	cd ${runtime_path} && docker build -t ${nametag} .
+${build_tool}: ${build_output} runtime/Dockerfile
+	cd runtime && docker build -t ${nametag} .
 	docker rmi -f adtexbuild
+	rm -rf runtime/exec
 	touch ${build_tool}
 
-test:
-	cd ${runtime_path} && docker run --rm -v ${runtime_fullpath}/test_input:/data $nametag --normal normal.cov --tumor tumor.cov --targetbed targets.bed --centromeres centromeres.bed --baf input.baf --estimatePloidy --out test_out --sampleid testSample
-	diff test_input/test_out/testSample.cnv expected_output/testSample.cnv
+${sources} = extract
+extract: test/normal.cov.gz
+	gunzip test/normal.cov.gz test/tumor.cov.gz
+
+test: test/normal.cov
+	docker run --rm -v ${curpath}/test:/data ${nametag} --normal normal.cov --tumor tumor.cov --targetbed targets.bed --centromeres centromeres.bed --baf input.baf --estimatePloidy --out test_out --sampleid testSample
+	diff test/test_out/testSample.cnv expected_output/expected.cnv
+	
 
 #push: all
 #	# Requires ~/.dockercfg
