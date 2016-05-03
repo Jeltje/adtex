@@ -2,13 +2,14 @@
 
 # ----------------------------------------------------------------------#
 # Note from Jeltje van Baren, 2015: 
-# reworked the code to make more robust.
-# Create temporary output on the docker container instead of in the working directory
-# Reimplement DNAcopy to take in log scores instead of ratios (code doesn't work properly on those)
+# Reworked the code to make more robust
+# Infer bam files from input name
+# Removed threading 
+# Added final DNAcopy step to take in log scores instead of ratios 
+# (CBS code doesn't work properly on those)
 # Catch runtime errors
-# Altered original code to avoid
-# copying large input files, and removed concatenation of png files into a pdf
-# Also removed option to input bam files, since the bedtools call fills up the drive
+# Altered original code to avoid copying large input files, and 
+# removed concatenation of png files into a pdf
 #
 # Copyright (c) 2013, Kaushalya Amarasinghe.
 #
@@ -48,17 +49,17 @@ class Options:
     def __init__(self):
         self.parser = argparse.ArgumentParser('Aberration Detection in Tumour EXome')
         self.parser.add_argument('-n','--normal', required=True, 
-           help = 'Matched normal sample in bed formatted coverage [REQUIRED], to generate bed formatted coverage please see documentation',
+           help = 'Matched normal sample in bam format OR bed formatted coverage [REQUIRED], to generate bed formatted coverage please see documentation',
            dest='control')
         self.parser.add_argument('-t','--tumor', required=True, 
-            help = 'Tumor sample in bed format DOC coverage [REQUIRED], to generate bed formatted coverage please see documentation',dest='tumor')
-        self.parser.add_argument('-s','--sample', type=str, required=True, help = 'sample ID (will be used in output) [REQUIRED]', dest='sample')
-        self.parser.add_argument('-b','--bed', required=True, help = 'BED format of the targeted regions [REQUIRED]', dest='bed')
-        self.parser.add_argument('-c', '--centro', type=str, required=True, help="Centromere bed file [REQUIRED]")
+            help = 'Tumor sample in bam format OR bed format DOC coverage [REQUIRED], to generate bed formatted coverage please see documentation',dest='tumor')
+        self.parser.add_argument('-s','--sampleid', type=str, required=True, help = 'sample ID (will be used in output) [REQUIRED]')
+        self.parser.add_argument('-b','--targetbed', required=True, help = 'BED format of the targeted regions [REQUIRED]')
+        self.parser.add_argument('-c', '--centromeres', type=str, required=True, help="Centromere bed file [REQUIRED]")
         self.parser.add_argument('-o','--out', type=str, required=True, 
             help='Output folder name to store temporary files, folder will be created as a subfolder of the working directory if it does not exist [REQUIRED]', action='store', dest='outFolder') 
         self.parser.add_argument('--keeptemp',help='do not delete temporary output folder adtexout', dest='keeptemp',action='store_true')
-        self.parser.add_argument('--ploidy', type=str, default='2', help='Most common ploidy in the tumour sample [2]', 
+        self.parser.add_argument('--ploidy', type=str, help='Most common ploidy in the tumour sample [2]', 
             dest='ploidy',action='store')
         self.parser.add_argument('--estimatePloidy', help='If provided, --baf must be specified to estimate base ploidy [FALSE]',
             dest='p_est', action='store_true',default='False')
@@ -67,33 +68,33 @@ class Options:
             action='store', dest='minReadDepth' ) 
         self.parser.add_argument('-p', '--plot', 
             help='Plots each chromosome with CNV estimates [False]', 
-            action='store_true', dest='plot', default='False')
+            action='store_true', dest='plot', default=False)
         self.parser.add_argument('--baf', help='File containing B allele frequencies at heterozygous loci of the normal [optional]', dest='baf',action='store')
         
         args = self.parser.parse_args()
         self.control = args.control
         self.tumor = args.tumor
-        self.sample = args.sample
-        self.bed = args.bed
-        self.centro = args.centro
+        self.sample = args.sampleid
+        self.bed = args.targetbed
+        self.centro = args.centromeres
         self.outFolder = args.outFolder
         self.minRead = args.minReadDepth
+        self.bafin = 'False'
+        self.baf = 'False'
         if args.baf:
             self.baf = args.baf
             self.bafin = 'True'
-        else:
-            self.bafin = 'False'
-            self.baf = 'False'
+        self.keeptemp = False
         if args.keeptemp:
             self.keeptemp = True
+        self.ploidyIn = 'False'
+        self.ploidy = '2'
         if args.ploidy:
             self.ploidy = args.ploidy
             self.p_est='False'
             if str(args.p_est)=='True':
                 print "Ploidy provided. Estimation step won't be executed"
             self.ploidyIn = 'True'
-        else:
-            self.ploidyIn = 'False'
         if str(args.p_est)=='True' and str(self.ploidyIn)=='False':
             if args.baf:
                 self.p_est='True'
@@ -102,19 +103,35 @@ class Options:
         elif str(self.ploidyIn)=='False':
             self.ploidy = '2'
             self.p_est = 'False'            
+        self.plot = 'False'
         if args.plot:
             self.plot = 'True'
 
-# Convenience functions used in the pipeline
 def mkdir_p(path):
     """
     Allow overwriting an existing directory
+    Make sure the file path starts with /data if we're on a docker container 
     """
+    if not path.startswith('/data/'):
+        if 'docker' in open('/proc/self/cgroup').read():
+            path = os.path.join('/data/', path)
     if not os.path.isdir(path):
         try:
             os.makedirs(path)
         except:
             raise
+
+def getCoverage(bamfile, targetfile, outfile):
+    """
+    Runs bedtools coverage with the -d flag
+    """
+    with open(outfile, 'w') as o:
+        subprocess.check_call([
+            'bedtools', 'coverage', 
+            '-abam', bamfile,
+            '-d', 
+            '-b', targetfile,
+        ], stdout = o)
 
 def sortFile(infile,outfile):
     """
@@ -229,7 +246,8 @@ def estimatePloidy(tmpdir, workdir, snpSegfile):
         cnvfile = os.path.join(tmpdir, 'cnv' + i)
         outfile = os.path.join(tmpdir, 'cnv' + i + "_baf.txt")
         with open(outfile, 'w') as o:
-            subprocess.check_call(['bedtools', 'intersect', 
+            subprocess.check_call([
+                'bedtools', 'intersect', 
                 '-a', snpSegfile,
                 '-b', cnvfile,
                 '-wb'
@@ -317,9 +335,23 @@ def main():
 
     # These folders are local to the docker container
     workdir = options.outFolder
-    #workdir = os.path.join('/data', options.outFolder)
     tmpdir = os.path.join(workdir, 'tmp')
     mkdir_p(tmpdir)
+
+    if control.endswith('bam'):
+        print 'Looks like input files are bam, creating coverage files...'
+        # first create the coverage file, then set the control variable to be that file
+        covOut = os.path.join(tmpdir, 'control.cov')
+        getCoverage(control, targets, covOut)
+        assert os.path.exists(covOut)
+        control = covOut
+        # now for tumor
+        covOut = os.path.join(tmpdir, 'tumor.cov')
+        getCoverage(tumor, targets, covOut)
+        assert os.path.exists(covOut)
+        tumor = covOut
+    else:
+        print 'Looks like input files are bedtools coverage...'        
     
     chromstring= getChroms(targets)
         

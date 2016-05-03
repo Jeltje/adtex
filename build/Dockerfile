@@ -32,14 +32,13 @@ RUN wget -O /home/exec/ifultools_2.0-1.tar.gz https://cran.r-project.org/src/con
 RUN wget -O /home/exec/DNAcopy_1.44.0.tar.gz http://www.bioconductor.org/packages/release/bioc/src/contrib/DNAcopy_1.44.0.tar.gz
 RUN wget -O /home/exec/wmtsa_2.0-0.tar.gz https://cran.r-project.org/src/contrib/wmtsa_2.0-0.tar.gz
 
-# bedtools
-RUN wget https://github.com/arq5x/bedtools2/releases/download/v2.25.0/bedtools-2.25.0.tar.gz
-RUN tar xf bedtools-2.25.0.tar.gz
-WORKDIR /home/adtex-src/bedtools2
+# bedtools - use the last bedtools, not any of the bedtools2 (numbering v2.18.0 and up) because the output
+# format is different
+RUN wget https://github.com/arq5x/bedtools/archive/v2.17.0.tar.gz && \
+    tar xf v2.17.0.tar.gz
+WORKDIR /home/adtex-src/bedtools-2.17.0
 RUN make 
 RUN mv bin/bedtools /home/exec
-RUN mv bin/coverageBed /home/exec
-RUN mv bin/intersectBed /home/exec
 
 # change ownership of outputfiles so they can be deleted
 RUN chmod -R 777 /home/exec
