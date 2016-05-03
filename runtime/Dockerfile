@@ -21,7 +21,6 @@ RUN R CMD INSTALL /tmp/wmtsa_2.0-0.tar.gz
 
 # bedtools
 ADD exec/bedtools /usr/local/bin/
-ADD exec/coverageBed /usr/local/bin/
 
 # Adtex suite 
 ADD exec/RFunction.R /usr/local/bin/
@@ -34,8 +33,9 @@ ADD plot_results.R /usr/local/bin/
 ADD segment_ratio.R /usr/local/bin/
 ADD zygosity.R /usr/local/bin/
 
-# Heavily modified Adtex runner script
+# Heavily modified Adtex run script and post processing step
 ADD ADTEx.py /usr/local/bin/
+ADD basicDNAcopy.R /usr/local/bin/
 
 # Boilerplate
 RUN mkdir /opt/adtex

@@ -1,6 +1,6 @@
 # Definitions
 curpath = $(shell pwd)
-runtime_fullpath = ${curpath/runtime 
+runtime_fullpath = ${curpath}/runtime
 build_output = runtime/exec/ADTEx.py
 build_tool = runtime-container.DONE
 nametag = jeltje/adtex
@@ -11,7 +11,7 @@ sources = test/normal.cov test/tumor.cov
 all: ${build_output} ${build_tool}
 
 ${build_output}: build/Dockerfile
-	cd build && docker build -t adtexbuild .
+	#cd build && docker build -t adtexbuild .
 	docker run -v ${runtime_fullpath}:/data adtexbuild cp -rp exec /data
 
 ${build_tool}: ${build_output} runtime/Dockerfile
@@ -20,7 +20,7 @@ ${build_tool}: ${build_output} runtime/Dockerfile
 	rm -rf runtime/exec
 	touch ${build_tool}
 
-${sources} = extract
+${sources}: extract
 extract: test/normal.cov.gz
 	gunzip test/normal.cov.gz test/tumor.cov.gz
 
@@ -29,6 +29,3 @@ test: test/normal.cov
 	diff test/test_out/testSample.cnv expected_output/expected.cnv
 	
 
-#push: all
-#	# Requires ~/.dockercfg
-#	docker push ${nametag}
