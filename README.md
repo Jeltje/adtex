@@ -1,20 +1,20 @@
 # ADTEx 
 
 The Aberration Detection in Tumour EXome (ADTEx) program was developed and published by
-KC Amarasinge et al (see References below). It is a tool to detect copy number variation (CNV) 
+KC Amarasinge *et al* (see References below). It is a tool to detect copy number variation (CNV) 
 in exome sample pairs, usually a tumor and control from one patient.
 
-In a comparative analysis of exome CNV callers (A Alkodsi et al), ADTEx performed better than most other 
+In a comparative analysis of exome CNV callers (A Alkodsi *et al*), ADTEx performed better than most other 
 callers tested.
 
-ADTEx consists of a set of R scripts run through a python wrapper. The code includes a Circular 
-Binary Segmentation (CBS) step in which short segments are merged into larger ones if their scores 
+ADTEx consists of a set of R scripts run through a python wrapper. The code includes a **Circular 
+Binary Segmentation** (CBS) step in which short segments are merged into larger ones if their scores 
 are similar (defined as a number of standard deviations usually between 0.5 and 3.5). 
 The DNAcopy module that provides this calculation requires log score input. However, ADTEx
 does not generate log ratios, instead it supplies straight ratios to the CBS tool. 
 This results in a somewhat fragmented output.
 
-This repository contains code to create a docker implementation of the ADTEx tool. 
+**This repository contains code to create a docker implementation of the ADTEx tool.**
 The python wrapper has been rewritten, and a post processing CBS step added. 
 
 A docker image can be downloaded directly from dockerhub using
@@ -38,6 +38,13 @@ This will do the following:
 
 This two step build process makes it easier to edit the jeltje/adtex 'runtime' container because the necessary
 programs have all been compiled.
+
+Test the installed docker container:
+
+``make test``
+
+This will use input files from the `/test` directory and create output in `test/test_out`
+
 
 ## Running the docker container
 
@@ -92,7 +99,7 @@ the input directory (`/path/to/input/files` in the above example). Inside the di
 		and positive scores amplifications.
  
 To get amplified or deleted segments from this file, a threshold must be applied. This is often set to `0.25/-0.25`, 
-and with a minimum number of markers of 10 per segment.
+and with a minimum number of 10 markers per segment.
 
 ## Zygosity
 
@@ -117,10 +124,18 @@ docker run --log-driver=none -v /path/to/input/files:/data jeltje/adtex --normal
 
 ### Zygosity output
 
-(tbd)
+The zygosity step is run after the regular CNV caller, so the same output files will be generated as described before.
+
+In addition:
+
+`zygosity.res` is a file with cnv and zygosity calls per input SNP. The last column contains a human readable call on the SNP: LOH (loss of an allele), HET(erozygous), or ASCNA (allele specific amplification)
+
+`contamination` contains a single number <1, indicating a fraction of the sample. When studying tumor samples, this is the faction of non-tumor RNA present in the sample.
+
+`ploidy` contains the inferred ploidy of the tumor sample (2, 3, or 4). ADTEx assumes ploidy is not higher than 4.
 
 
-### References:
+## References:
 [Amarasinghe KC, Li J, Hunter SM, Ryland GL, Cowin PA, Campbell IG, Halgamuge SK. Inferring copy number and genotype in tumour exome data. BMC Genomics. 2014 Aug 28;15:732](http://www.ncbi.nlm.nih.gov/pubmed/25167919)
 
 [Amarasinghe KC, Li J, Halgamuge SK. CoNVEX: copy number variation estimation in exome sequencing data using HMM. BMC Bioinformatics 2013;14 Suppl. 2:S2](http://www.ncbi.nlm.nih.gov/pubmed/23368785)
