@@ -22,21 +22,20 @@ A docker image can be downloaded directly from dockerhub using
 
 ## Installation
 
-After getting the code via git clone https://github.com/Jeltje/adtex.git, 
+After getting the code via `git clone https://github.com/Jeltje/adtex.git`, 
 change to the adtex directory and run
 
 ``make``
 
 This will do the following:
-1. Build a docker image named adtexbuild, on which it will download and install all needed tools in one directory.
-	This step takes a while
-2. Start the adtexbuild container from the comand line, then copy the build directory from the container to the 
-	/runtime directory
-3. Build the jeltje/adtex container using the built tools
-	This step should take a few minutes
-4. Run a test to verify that the container works correctly
+  1. Build a docker image named adtexbuild, on which it will download and install all needed tools in one directory.
+	This step takes a while.
+  2. Start the adtexbuild container from the comand line, then copy the build directory from the container to the 
+	/runtime directory.
+  3. Build the jeltje/adtex container using the built tools.
+	This step should take a few minutes.
 
-This two step build process makes it easier to edit the jeltje/adtex 'runtime' container because the necessary
+This two step Docker build process makes it easier to edit the jeltje/adtex 'runtime' container because the necessary
 programs have all been compiled.
 
 Test the installed docker container:
