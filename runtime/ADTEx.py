@@ -38,7 +38,6 @@ import sys
 import subprocess
 import shutil
 
-
 #absolute script path
 scriptPath = os.path.realpath(os.path.dirname(sys.argv[0]))
 
@@ -138,7 +137,8 @@ def sortFile(infile,outfile):
     Sort input coverage file by chromosome and start, end positions
     """
     with open(outfile, 'w') as o:
-        subprocess.check_call(['sort', '-V', '-k1', '-k2n', '-k3n', '-k4n', infile], stdout=o)
+        return subprocess.Popen(['sort', '-V', '-k1', '-k2n', '-k3n', '-k4n', infile], stdout=o)
+    
 
 def getChroms(infile):
     """
@@ -175,7 +175,6 @@ def getMeanCoverage(infile,outfile):
                 count = count + 1
         
             if (int(l[2]) - int(l[1]) == int(l[ll-2])):
-                #if count > 10:
                 if count > -1:
                     chr = str(l[0])
                     start  = str(l[1])
@@ -217,12 +216,17 @@ def analyseCNV(params, ratio_data, outdir, tmpdir,  chroms):
     else:
         # if we DO want to estimate ploidy, run CNV three times, once for each ploidy and output files as temporaries
 	# in tmpdir
+        procs = []
         for ploidy in ['2', '3', '4']:
             outfile = os.path.join(tmpdir, "cnv.result" + ploidy)
             with open(outfile, 'w') as o:
-                subprocess.check_call(['Rscript', rScriptName, rFunctionsPath, 
+                p = subprocess.Popen(['Rscript', rScriptName, rFunctionsPath, 
                     ratio_data, ploidy, params.minRead,  
                     params.bafin, params.baf, params.plot, chroms], stdout=o)
+                procs.append(p)
+        for p in procs:
+            if p.wait() != 0:
+                raise Exception("Could not finish cnv_analyse.R")
 
 def zygosity(params, outdir, cnv, chroms):
     """
@@ -358,12 +362,15 @@ def main():
     print 'Sorting input files...'
     sortedcontrol = os.path.join(tmpdir, 'control.coverage.sorted')
     sortedtumor   = os.path.join(tmpdir, 'tumor.coverage.sorted')
-    sortFile(os.path.abspath(control), sortedcontrol)
-    sortFile(os.path.abspath(tumor), sortedtumor)
+    p1 = sortFile(os.path.abspath(control), sortedcontrol)
+    p2 = sortFile(os.path.abspath(tumor), sortedtumor)
+    p1.wait()
+    p2.wait()
 
     print 'Generating mean coverage files...'
     coveredcontrol = os.path.join(tmpdir, 'control.coverage')
     coveredtumor = os.path.join(tmpdir, 'tumor.coverage')
+
     getMeanCoverage(sortedcontrol, coveredcontrol)
     getMeanCoverage(sortedtumor, coveredtumor)
 
