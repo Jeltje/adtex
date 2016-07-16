@@ -58,6 +58,7 @@ class Options:
         self.parser.add_argument('-o','--out', type=str, required=True, 
             help='Output folder name to store temporary files, folder will be created as a subfolder of the working directory if it does not exist [REQUIRED]', action='store', dest='outFolder') 
         self.parser.add_argument('--keeptemp',help='do not delete temporary output folder adtexout', dest='keeptemp',action='store_true')
+        self.parser.add_argument('--tostdout',help='Print cnv file to STDOUT, remove workdir. Only works if ploidy is not estimated.', dest='tostdout',action='store_true')
         self.parser.add_argument('--ploidy', type=str, help='Most common ploidy in the tumour sample [2]', 
             dest='ploidy',action='store')
         self.parser.add_argument('--estimatePloidy', help='If provided, --baf must be specified to estimate base ploidy [FALSE]',
@@ -92,7 +93,7 @@ class Options:
             self.ploidy = args.ploidy
             self.p_est='False'
             if str(args.p_est)=='True':
-                print "Ploidy provided. Estimation step won't be executed"
+                print >>sys.stderr,  "Ploidy provided. Estimation step won't be executed"
             self.ploidyIn = 'True'
         if str(args.p_est)=='True' and str(self.ploidyIn)=='False':
             if args.baf:
@@ -162,7 +163,8 @@ def getMeanCoverage(infile,outfile):
     Calculate mean coverage in input file, outputs a file with chrom, startpos, endpos, and mean coverage
     """
     with open(infile, 'r') as inF, open (outfile, 'w') as outF:
-
+        # keep track of the values per chromosome
+        chrdict = dict()
         tot = 0
         count = 0
 
@@ -180,9 +182,21 @@ def getMeanCoverage(infile,outfile):
                     start  = str(l[1])
                     end = str(l[2])
                     mean = round(float(tot)/int(l[ll-2]),0)
+                    chrdict.setdefault(chr,set()).add(mean)
                     outF.write(chr+"\t"+start+"\t"+end+"\t"+str(mean)+"\n")
                 tot = 0
                 count =0
+        # sanity check
+        noCov = False
+        empties = []
+        for chr in chrdict:
+            if len(chrdict[chr]) == 1:
+                noCov = True
+                empties.append(chr)
+        if noCov:
+            print >>sys.stderr, "ERROR: These chromosomes have no coverage in {}: {}".format(infile, ', '.join(c for c in empties))
+            exit(1)
+
                 
 
 def segmentRatio(params, cCoverage, tCoverage, outF, chroms, ratioOutfile, snpSegfile):
@@ -343,7 +357,7 @@ def main():
     mkdir_p(tmpdir)
 
     if control.endswith('bam'):
-        print 'Looks like input files are bam, creating coverage files...'
+        print >>sys.stderr,  'Looks like input files are bam, creating coverage files...'
         # first create the coverage file, then set the control variable to be that file
         covOut = os.path.join(tmpdir, 'control.cov')
         getCoverage(control, targets, covOut)
@@ -355,11 +369,11 @@ def main():
         assert os.path.exists(covOut)
         tumor = covOut
     else:
-        print 'Looks like input files are bedtools coverage...'        
+        print >>sys.stderr,  'Looks like input files are bedtools coverage...'        
     
     chromstring= getChroms(targets)
         
-    print 'Sorting input files...'
+    print >>sys.stderr,  'Sorting input files...'
     sortedcontrol = os.path.join(tmpdir, 'control.coverage.sorted')
     sortedtumor   = os.path.join(tmpdir, 'tumor.coverage.sorted')
     p1 = sortFile(os.path.abspath(control), sortedcontrol)
@@ -367,24 +381,24 @@ def main():
     p1.wait()
     p2.wait()
 
-    print 'Generating mean coverage files...'
+    print >>sys.stderr,  'Generating mean coverage files...'
     coveredcontrol = os.path.join(tmpdir, 'control.coverage')
     coveredtumor = os.path.join(tmpdir, 'tumor.coverage')
 
     getMeanCoverage(sortedcontrol, coveredcontrol)
     getMeanCoverage(sortedtumor, coveredtumor)
 
-    print 'Creating segment ratios...'
+    print >>sys.stderr,  'Creating segment ratios...'
     ratiofile = os.path.join(tmpdir, 'ratio.data')
     snpSegfile = os.path.join(tmpdir, 'snp_segments')
     segmentRatio(options, coveredcontrol, coveredtumor, workdir, chromstring, ratiofile, snpSegfile)
     
-    print 'Analyzing CNV...'
+    print >>sys.stderr,  'Analyzing CNV...'
     cnvFiles = analyseCNV(options, ratiofile, workdir, tmpdir, chromstring)
 
     if(options.p_est == "True"):
 
-        print "Estimating base ploidy..."
+        print >>sys.stderr,  "Estimating base ploidy..."
         estimatePloidy(tmpdir, workdir, snpSegfile)
     	
     if options.plot == "True":
@@ -399,7 +413,7 @@ def main():
     cnvfile = os.path.join(workdir, 'cnv.result')
     assert os.path.exists(cnvfile)
     if(bafIn == "True"):
-	print "Predicting Zygosity states"
+	print >>sys.stderr,  "Predicting Zygosity states"
         zygosity(options, workdir, cnvfile, chromstring) 
 
     # This is an addition to the original ADTEx code. In cnv_analyse.R, DNAcopy is
@@ -409,9 +423,14 @@ def main():
     cbsOut = os.path.join(workdir, sampleId + '.cnv')
     doCBS(options.centro, tmpdir, cnvfile, cbsOut, sampleId)
 
+    if options.tostdout and bafIn != "True":
+        with open(cbsOut, 'r') as f:
+           print f.read()
+        shutil.rmtree(workdir)
+    else:
     # Delete temporary directory	
-    if not options.keeptemp:
-        shutil.rmtree(tmpdir)
+        if not options.keeptemp:
+            shutil.rmtree(tmpdir)
     subprocess.call("date",shell=True)
 	
 if __name__ == "__main__":
