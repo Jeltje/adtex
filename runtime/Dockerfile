@@ -8,15 +8,15 @@ RUN apt-get update && apt-get install -y \
 
 # DNAcopy and wmtsa package (move to R library location)
 # Note: cannot use ADD because this untars the file
-COPY exec/DNAcopy_1.44.0.tar.gz /tmp/
+COPY DNAcopy_1.44.0.tar.gz /tmp/
 RUN R CMD INSTALL /tmp/DNAcopy_1.44.0.tar.gz 
-COPY exec/splus2R_1.2-0.tar.gz /tmp/
+COPY splus2R_1.2-0.tar.gz /tmp/
 RUN R CMD INSTALL /tmp/splus2R_1.2-0.tar.gz
-COPY exec/MASS_7.3-36.tar.gz /tmp/
+COPY MASS_7.3-36.tar.gz /tmp/
 RUN R CMD INSTALL /tmp/MASS_7.3-36.tar.gz
-COPY exec/ifultools_2.0-1.tar.gz /tmp/
+COPY ifultools_2.0-1.tar.gz /tmp/
 RUN R CMD INSTALL /tmp/ifultools_2.0-1.tar.gz
-COPY exec/wmtsa_2.0-0.tar.gz /tmp/
+COPY wmtsa_2.0-0.tar.gz /tmp/
 RUN R CMD INSTALL /tmp/wmtsa_2.0-0.tar.gz
 
 # bedtools

@@ -84,6 +84,9 @@ class Options:
         if args.baf:
             self.baf = args.baf
             self.bafin = 'True'
+        self.tostdout = False
+        if args.tostdout:
+            self.tostdout = True
         self.keeptemp = False
         if args.keeptemp:
             self.keeptemp = True
