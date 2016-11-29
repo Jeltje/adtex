@@ -1,5 +1,7 @@
 # ADTEx 
 
+**This repository contains code to create a docker implementation of the ADTEx tool.**
+
 The Aberration Detection in Tumour EXome (ADTEx) program was developed and published by
 KC Amarasinge *et al* (see References below). It is a tool to detect copy number variation (CNV) 
 in exome sample pairs, usually a tumor and control from one patient.
@@ -7,43 +9,33 @@ in exome sample pairs, usually a tumor and control from one patient.
 In a comparative analysis of exome CNV callers (A Alkodsi *et al*), ADTEx performed better than most other 
 callers tested.
 
+**Inputs** to the program are a tumor/control pair of BAM files and several bed format helper files (see below).
+**Output** is a file with chromosome segments that are scored for amplification or deletion.
+
+To get per-gene output, these scores must be mapped to an annotation, for example using [this program] (https://github.com/Jeltje/cnvtogenes)
+
+## The code
+
 ADTEx consists of a set of R scripts run through a python wrapper. The code includes a **Circular 
 Binary Segmentation** (CBS) step in which short segments are merged into larger ones if their scores 
 are similar (defined as a number of standard deviations usually between 0.5 and 3.5). 
-The DNAcopy module that provides this calculation requires log score input. However, ADTEx
+The DNAcopy module that provides this calculation requires log score input. However, the original ADTEx code
 does not generate log ratios, instead it supplies straight ratios to the CBS tool. 
 This results in a somewhat fragmented output.
 
-**This repository contains code to create a docker implementation of the ADTEx tool.**
-The python wrapper has been rewritten, and a post processing CBS step added. 
+In this implementation the python wrapper has been rewritten, and a post processing CBS step added. 
 
-A docker image can be downloaded directly from dockerhub using
-`docker pull jeltje/adtex`
+## Getting the docker container
 
-## Installation
+The latest ADTEX docker image can be downloaded directly from quay.io using
+`docker pull quay.io/jeltje/adtex`
 
-After getting the code via `git clone https://github.com/Jeltje/adtex.git`, 
-change to the adtex directory and run
-
-``make``
-
-This will do the following:
-  1. Build a docker image named adtexbuild, on which it will download and install all needed tools in one directory.
-	This step takes a while.
-  2. Start the adtexbuild container from the comand line, then copy the build directory from the container to the 
-	/runtime directory.
-  3. Build the jeltje/adtex container using the built tools.
-	This step should take a few minutes.
-
-This two step Docker build process makes it easier to edit the jeltje/adtex 'runtime' container because the necessary
-programs have all been compiled.
-
-Test the installed docker container:
-
-``make test``
-
-This will use input files from the `/test` directory and create output in `test/test_out`
-
+Alternatively, you can build from the github repo:
+```
+git clone https://github.com/jeltje/adtex.git
+cd adtex
+docker build -t jeltje/adtex .
+```
 
 ## Running the docker container
 
