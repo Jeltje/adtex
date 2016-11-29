@@ -39,7 +39,7 @@ docker build -t jeltje/adtex .
 
 ## Running the docker container
 
-For details on running docker containers in general, see the excellent tutorial at https://docs.docker.com/linux/
+For details on running docker containers in general, see the excellent tutorial at https://docs.docker.com/
 
 To see a usage statement, run
 
