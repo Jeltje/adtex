@@ -20,6 +20,8 @@
 # 
 #-----------------------------------------------------------------------#
 
+require("ifultools")
+
 forward_back<-function(Pi,A,B,nstates){
   #Pi - initial state distribution
   #A - transition matrix

@@ -26,6 +26,7 @@
 #-----------------------------------------------------------------------#
 
 require("wmtsa")
+require("splus2R")
 
 options <- commandArgs(trailingOnly = T)
 sourceFunc = options[1]
