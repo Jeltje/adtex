@@ -59,7 +59,7 @@ where
 
 `sampleid` is an identifier for the patient. This will be used in the output.
 
-`out` is the output directory, will be created in /path/to/input/files if it doesn't exist
+`out` is the output directory, will be created in /path/to/input/files if it doesn't exist. See under **Output** for details. A subfolder named `/tmp` will be created inside this directory for temporary files.
 
 `targetbed` is a list of exome targets in bed format
 
