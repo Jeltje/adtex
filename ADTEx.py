@@ -136,12 +136,12 @@ def getCoverage(bamfile, targetfile, outfile):
             '-b', targetfile,
         ], stdout = o)
 
-def sortFile(infile,outfile):
+def sortFile(infile,outfile, tmpdir):
     """
     Sort input coverage file by chromosome and start, end positions
     """
     with open(outfile, 'w') as o:
-        return subprocess.Popen(['sort', '-V', '-k1', '-k2n', '-k3n', '-k4n', infile], stdout=o)
+        return subprocess.Popen(['sort', '-T', tmpdir, '-V', '-k1', '-k2n', '-k3n', '-k4n', infile], stdout=o)
     
 
 def getChroms(infile):
@@ -379,8 +379,10 @@ def main():
     print >>sys.stderr,  'Sorting input files...'
     sortedcontrol = os.path.join(tmpdir, 'control.coverage.sorted')
     sortedtumor   = os.path.join(tmpdir, 'tumor.coverage.sorted')
-    p1 = sortFile(os.path.abspath(control), sortedcontrol)
-    p2 = sortFile(os.path.abspath(tumor), sortedtumor)
+    sortdir = os.path.join(tmpdir, 'sort')
+    mkdir_p(sortdir)
+    p1 = sortFile(os.path.abspath(control), sortedcontrol, sortdir)
+    p2 = sortFile(os.path.abspath(tumor), sortedtumor, sortdir)
     p1.wait()
     p2.wait()
 
