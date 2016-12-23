@@ -154,7 +154,7 @@ def getChroms(infile):
     with open (infile, 'r') as f:
         for line in f:
             chr_current=line.rstrip().split("\t")[0]
-            if (chr_current!=chr_prev and chr_current[0]!="G"):
+            if (chr_current!=chr_prev and chr_current[0]!="G" and chr_current!='chr'):
                 chr_prev=chr_current
                 chr.append(chr_current)
     
@@ -397,6 +397,8 @@ def main():
     ratiofile = os.path.join(tmpdir, 'ratio.data')
     snpSegfile = os.path.join(tmpdir, 'snp_segments')
     segmentRatio(options, coveredcontrol, coveredtumor, workdir, chromstring, ratiofile, snpSegfile)
+    # replace chromstring in case the ratio file contains fewer chromosomes
+    chromstring= getChroms(ratiofile)
     
     print >>sys.stderr,  'Analyzing CNV...'
     cnvFiles = analyseCNV(options, ratiofile, workdir, tmpdir, chromstring)
